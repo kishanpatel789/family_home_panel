@@ -2,3 +2,5 @@
 notes.md
 *.swp
 venv/
+config.yaml
+__pycache__/
