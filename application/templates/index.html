@@ -19,7 +19,11 @@
         <p class="text-gray-700">
           {{ weather.current.condition }}
         </p>
-        <p class="text-2xl font-bold">{{ weather.current.temperature}}°C</p>
+        <p class="text-4xl">{{ weather_emoji_map[weather.current.icon] }}</p>
+        <p class="text-2xl font-bold">{{ weather.current.temperature}}&#176;C</p>
+        <p>{{ weather.current.wind_speed }} km/h from {{weather.current.wind_deg }}&#176;</p>
+        <p>{{ weather.current.cloud_coverage }}% cloudy</p>
+        <p class="text-xs text-gray-500">Last updated {{ weather.last_updated }}</p>
       </div>
 
       <!-- Forecast Section -->

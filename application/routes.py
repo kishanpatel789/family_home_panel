@@ -27,6 +27,27 @@ NUM_DAYS = int(config.get("num_days", 3))
 BASE_URL = config.get("base_url", "https://api.openweathermap.org/data/2.5")
 
 
+WEATHER_EMOJI_MAP = {
+    "01d": "\u2600",  # sun
+    "01n": "\U0001f319",  # crescent moon
+    "02d": "\u26c5",  # partly cloudy (day)
+    "02n": "\u2601",  # partly cloudy (night)
+    "03d": "\u2601",  # Scattered clouds
+    "03n": "\u2601",
+    "04d": "\u2601",  # Broken clouds
+    "04n": "\u2601",
+    "09d": "\U0001F327",  # Shower rain
+    "09n": "\U0001F327",
+    "10d": "\U0001F326",  # Rain (day)
+    "10n": "\U0001F327",  # Rain (night)
+    "11d": "\u26c8",  # Thunderstorm
+    "11n": "\u26c8",
+    "13d": "\U0001f328",  # Snow
+    "13n": "\U0001f328",
+    "50d": "\U0001F327",  # Mist
+    "50n": "\U0001F327",
+}
+
 # get current weather
 def get_current_weather():
     url = f"{BASE_URL}/weather?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}"
@@ -46,19 +67,32 @@ def get_forecast_weather():
 
     return forecast_weather
 
+def process_rain_snow(weather: dict) -> tuple:
+    rain_mmh = None
+    snow_mmh = None
+
+    if "rain" in weather:
+        rain_mmh = round(weather["rain"]["1h"])
+    if "snow" in weather:
+        snow_mmh = round(weather["snow"]["1h"])
+
+    return (rain_mmh, snow_mmh)
 
 def update_weather_cache() -> models.WeatherCache:
     cw = get_current_weather()
     # forecast_weather_json = get_forecast_weather()
 
+    rain_mmh, snow_mmh = process_rain_snow(cw)
+
     current_weather_model = models.CurrentWeather(
         condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
+        icon=cw["weather"][0]["icon"],
         temperature=round(cw["main"]["temp"]),
-        wind_speed=cw["wind"]["speed"],
+        wind_speed=round(cw["wind"]["speed"] / 1000 * 60 * 60),  # convert m/s to km/hr
         wind_deg=cw["wind"]["deg"],
         cloud_coverage=cw["clouds"]["all"],
-        rain=cw.get("rain", {}).get("1h"),
-        snow=cw.get("snow", {}).get("1h"),
+        rain=rain_mmh,
+        snow=snow_mmh,
     )
 
     weather_cache = models.WeatherCache(
@@ -98,8 +132,10 @@ def get_weather() -> dict:
     # get weather
     # try cache first
     weather_cache = get_cached_weather()
+    weather_cache_dict = weather_cache.model_dump()
+    weather_cache_dict["last_updated"] = weather_cache.formatted_timestamp
 
-    return weather_cache.model_dump()
+    return weather_cache_dict
     #   if cache is not available or expired, make api call
 
     # make api call
@@ -118,6 +154,7 @@ def home():
     return render_template(
         "index.html",
         weather=weather_dict,
+        weather_emoji_map=WEATHER_EMOJI_MAP,
         events_today=None,
         events_tomorrow=None,
         meals=None,
