@@ -28,11 +28,11 @@
 
       <!-- Forecast Section -->
       <div class="mb-6 p-4 bg-blue-200 rounded-lg">
-        <h2 class="text-lg font-semibold">Weather Forecast</h2>
+        <h2 class="text-lg font-semibold">Forecast</h2>
         <ul>
-          {% for day in weather.forecast %}
+          {% for hour in weather.forecast %}
           <li class="text-gray-700">
-            {{ day.date }}: {{ day.condition }}, {{ day.temperature }}°C
+            {{ hour.timestamp }}: {{ weather_emoji_map[hour.icon] }} {{ hour.condition }} , {{ hour.temperature }}&#176;C ({{ hour.precipitation_chance }}%)
           </li>
           {% endfor %}
         </ul>

@@ -12,15 +12,18 @@ class CurrentWeather(BaseModel):
     rain: int | None = None
     snow: int | None = None
 
+class HourForecast(BaseModel):
+    timestamp: int
+    condition: str
+    icon: str
+    temperature: int
+    precipitation_chance: int
         
-
-class ForecastWeather(BaseModel):
-    pass
 
 class WeatherCache(BaseModel):
     timestamp: int
     current: CurrentWeather
-    # forecast: ForecastWeather
+    forecast: list[HourForecast]
 
     @property
     def formatted_timestamp(self) -> str:

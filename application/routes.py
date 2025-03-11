@@ -30,26 +30,26 @@ BASE_URL = config.get("base_url", "https://api.openweathermap.org/data/2.5")
 WEATHER_EMOJI_MAP = {
     "01d": "\u2600",  # sun
     "01n": "\U0001f319",  # crescent moon
-    "02d": "\u26c5",  # partly cloudy (day)
+    "02d": "\u26c5",  # few clouds (day)
     "02n": "\u2601",  # partly cloudy (night)
-    "03d": "\u2601",  # Scattered clouds
+    "03d": "\u26c5",  # Scattered clouds
     "03n": "\u2601",
     "04d": "\u2601",  # Broken clouds
     "04n": "\u2601",
-    "09d": "\U0001F327",  # Shower rain
-    "09n": "\U0001F327",
-    "10d": "\U0001F326",  # Rain (day)
-    "10n": "\U0001F327",  # Rain (night)
+    "09d": "\U0001f327",  # Shower rain
+    "09n": "\U0001f327",
+    "10d": "\U0001f326",  # Rain (day)
+    "10n": "\U0001f327",  # Rain (night)
     "11d": "\u26c8",  # Thunderstorm
     "11n": "\u26c8",
     "13d": "\U0001f328",  # Snow
     "13n": "\U0001f328",
-    "50d": "\U0001F327",  # Mist
-    "50n": "\U0001F327",
+    "50d": "\U0001f327",  # Mist
+    "50n": "\U0001f327",
 }
 
-# get current weather
-def get_current_weather():
+
+def get_current_weather() -> dict:
     url = f"{BASE_URL}/weather?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}"
     response = requests.get(url)
     response.raise_for_status()
@@ -58,14 +58,14 @@ def get_current_weather():
     return current_weather
 
 
-# get forecast
-def get_forecast_weather():
+def get_forecast_weather() -> list:
     url = f"{BASE_URL}/forecast?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}&cnt={NUM_DAYS*8}"
     response = requests.get(url)
     response.raise_for_status()
-    forecast_weather = response.json()
+    forecast_weather = response.json()["list"]
 
     return forecast_weather
+
 
 def process_rain_snow(weather: dict) -> tuple:
     rain_mmh = None
@@ -78,12 +78,12 @@ def process_rain_snow(weather: dict) -> tuple:
 
     return (rain_mmh, snow_mmh)
 
+def timestamp_to_date_hour(timestamp: int) -> str:
+    return datetime.fromtimestamp(timestamp).strftime("%m-%d %H")
+
 def update_weather_cache() -> models.WeatherCache:
     cw = get_current_weather()
-    # forecast_weather_json = get_forecast_weather()
-
     rain_mmh, snow_mmh = process_rain_snow(cw)
-
     current_weather_model = models.CurrentWeather(
         condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
         icon=cw["weather"][0]["icon"],
@@ -95,9 +95,22 @@ def update_weather_cache() -> models.WeatherCache:
         snow=snow_mmh,
     )
 
+    fw = get_forecast_weather()
+    forecast_weather_models = []
+    for f in fw:
+        _forecast_model = models.HourForecast(
+            timestamp=f["dt"],
+            condition=f"{f['weather'][0]['main']} - {f['weather'][0]['description']}",
+            icon=f["weather"][0]["icon"],
+            temperature=round(f["main"]["temp"]),
+            precipitation_chance=f["pop"],
+        )
+        forecast_weather_models.append(_forecast_model)
+
     weather_cache = models.WeatherCache(
         timestamp=int(time.time()),
         current=current_weather_model,
+        forecast=forecast_weather_models,
     )
 
     with open(app.config["API_CONFIG"]["weather"]["cache_file"], "wt") as cache_file:
@@ -113,8 +126,10 @@ def get_cached_weather() -> models.WeatherCache:
         except ValidationError as e:
             logger.error(e)
             return update_weather_cache()
-        
-    cache_expiration_timestamp = cache_data.timestamp + app.config["API_CONFIG"]["weather"]["cache_ttl"]
+
+    cache_expiration_timestamp = (
+        cache_data.timestamp + app.config["API_CONFIG"]["weather"]["cache_ttl"]
+    )
     if time.time() < cache_expiration_timestamp:
         logger.info("Using fresh cache.")
         return cache_data
@@ -134,6 +149,9 @@ def get_weather() -> dict:
     weather_cache = get_cached_weather()
     weather_cache_dict = weather_cache.model_dump()
     weather_cache_dict["last_updated"] = weather_cache.formatted_timestamp
+
+    for f in weather_cache_dict["forecast"]:
+        f["timestamp"] = timestamp_to_date_hour(f["timestamp"])
 
     return weather_cache_dict
     #   if cache is not available or expired, make api call
@@ -161,6 +179,6 @@ def home():
     )
 
 
-@app.route("/test")
-def test():
-    return get_weather().model_dump()
+# @app.route("/test")
+# def test():
+#     return get_weather().model_dump()
