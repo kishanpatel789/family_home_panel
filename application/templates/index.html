@@ -6,18 +6,81 @@
     <title>Patel Home Panel</title>
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
   </head>
-  <body class="h-screen flex items-center justify-center bg-gray-100">
-    <div class="text-center bg-white p-6 rounded-lg shadow-lg">
-      {% with messages = get_flashed_messages() %} {% if messages %}
-      <ul>
-        {% for message in messages %}
-        <li>{{ message }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %} {% endwith %}
-      <h1 class="text-3xl font-bold">Patel Home Panel</h1>
-      <h2 class="text-2xl py-4">Coming soon</h2>
-      <p>Stay updated with today's weather, events, and meals.</p>
+  <body
+    class="bg-gray-100 text-gray-900 flex justify-center items-center min-h-screen"
+  >
+    <div class="w-full max-w-3xl bg-white p-6 rounded-lg shadow-lg">
+      <!-- Header -->
+      <h1 class="text-2xl font-bold text-center mb-4">Home Panel</h1>
+
+      <!-- Weather Section -->
+      <div class="mb-6 p-4 bg-blue-100 rounded-lg">
+        <h2 class="text-lg font-semibold">Current Weather</h2>
+        <p class="text-gray-700">
+          {{ weather.current.condition }}
+        </p>
+        <p class="text-2xl font-bold">{{ weather.current.temperature}}°C</p>
+      </div>
+
+      <!-- Forecast Section -->
+      <div class="mb-6 p-4 bg-blue-200 rounded-lg">
+        <h2 class="text-lg font-semibold">Weather Forecast</h2>
+        <ul>
+          {% for day in weather.forecast %}
+          <li class="text-gray-700">
+            {{ day.date }}: {{ day.condition }}, {{ day.temperature }}°C
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- Today's Events -->
+      <div class="mb-6 p-4 bg-green-100 rounded-lg">
+        <h2 class="text-lg font-semibold">Today's Events</h2>
+        {% if events_today %}
+        <ul>
+          {% for event in events_today %}
+          <li class="text-gray-700">{{ event.time }} - {{ event.name }}</li>
+          {% else %}
+          <li class="text-gray-500">No events today</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No events today</p>
+        {% endif %}
+      </div>
+
+      <!-- Tomorrow's Events -->
+      <div class="mb-6 p-4 bg-yellow-100 rounded-lg">
+        <h2 class="text-lg font-semibold">Tomorrow's Events</h2>
+        {% if events_tomorrow %}
+        <ul>
+          {% for event in events_tomorrow %}
+          <li class="text-gray-700">{{ event.time }} - {{ event.name }}</li>
+          {% else %}
+          <li class="text-gray-500">No events tomorrow</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No events tomorrow</p>
+        {% endif %}
+      </div>
+
+      <!-- Meals Section -->
+      <div class="p-4 bg-red-100 rounded-lg">
+        <h2 class="text-lg font-semibold">Meals</h2>
+        {% if meals %}
+        <ul>
+          {% for meal in meals %}
+          <li class="text-gray-700">{{ meal.time }} - {{ meal.name }}</li>
+          {% else %}
+          <li class="text-gray-500">No meals planned</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No meals planned</p>
+        {% endif %}
+      </div>
     </div>
   </body>
 </html>

@@ -16,6 +16,7 @@ import requests
 from pydantic import ValidationError
 
 from . import models
+from .config import logger
 
 config = app.config["API_CONFIG"]["weather"]
 LAT = config["lat"]
@@ -39,22 +40,22 @@ def get_current_weather():
 # get forecast
 def get_forecast_weather():
     url = f"{BASE_URL}/forecast?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}&cnt={NUM_DAYS*8}"
-    response2 = requests.get(url)
-    response2.raise_for_status()
-    forecast_weather = response2.json()
+    response = requests.get(url)
+    response.raise_for_status()
+    forecast_weather = response.json()
 
     return forecast_weather
 
 
-def update_weather_cache():
+def update_weather_cache() -> models.WeatherCache:
     cw = get_current_weather()
     # forecast_weather_json = get_forecast_weather()
 
     current_weather_model = models.CurrentWeather(
-        condition=f"{cw['weather'][0]['main'] - cw['weather'][0]['description']}",
-        temperature=cw["main"]["temp"],
+        condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
+        temperature=round(cw["main"]["temp"]),
         wind_speed=cw["wind"]["speed"],
-        wind_direction=cw["wind"]["direction"],
+        wind_deg=cw["wind"]["deg"],
         cloud_coverage=cw["clouds"]["all"],
         rain=cw.get("rain", {}).get("1h"),
         snow=cw.get("snow", {}).get("1h"),
@@ -66,35 +67,39 @@ def update_weather_cache():
     )
 
     with open(app.config["API_CONFIG"]["weather"]["cache_file"], "wt") as cache_file:
-        json.dump(weather_cache.model_dump(), cache_file)
+        json.dump(weather_cache.model_dump(), cache_file, indent=4)
+
+    return weather_cache
 
 
-def get_cached_weather():
+def get_cached_weather() -> models.WeatherCache:
     with open(app.config["API_CONFIG"]["weather"]["cache_file"], "rt") as cache_file:
         try:
             cache_data = models.WeatherCache(**json.load(cache_file))
         except ValidationError as e:
-            print(e)
-        if (
-            time.time()
-            < cache_data.timestamp + app.config["API_CONFIG"]["weather"]["cache_ttl"]
-        ):
-            return cache_data
+            logger.error(e)
+            return update_weather_cache()
+        
+    cache_expiration_timestamp = cache_data.timestamp + app.config["API_CONFIG"]["weather"]["cache_ttl"]
+    if time.time() < cache_expiration_timestamp:
+        logger.info("Using fresh cache.")
+        return cache_data
+    else:
+        logger.info("Cache expired. Refreshing cache.")
+        return update_weather_cache()
 
 
-def get_weather():
+def get_weather() -> dict:
+    """Returns weather data to be used in jinja template; relies on cache
+
+    Returns:
+        _type_: _description_
+    """
     # get weather
     # try cache first
-    try:
-        cached = get_cached_weather()
-    except ValidationError as e:
-        print(e)
-        update_weather_cache()
+    weather_cache = get_cached_weather()
 
-    if cached is not None:
-        return cached
-    update_weather_cache()
-    return get_cached_weather()
+    return weather_cache.model_dump()
     #   if cache is not available or expired, make api call
 
     # make api call
@@ -108,11 +113,14 @@ def get_weather():
 
 @app.route("/")
 def home():
-    # flash("Test flash")
-    get_cached_weather()
+    weather_dict = get_weather()
 
     return render_template(
         "index.html",
+        weather=weather_dict,
+        events_today=None,
+        events_tomorrow=None,
+        meals=None,
     )
 
 

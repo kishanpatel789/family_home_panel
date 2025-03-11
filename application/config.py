@@ -1,5 +1,8 @@
-import yaml
+import logging
 from pathlib import Path
+
+import yaml
+
 
 app_dir = Path(__file__).parent
 config_file_path = app_dir / "config.yaml"
@@ -23,3 +26,17 @@ class Config:
 if config_data is not None:
     for k, v in config_data.items():
         setattr(Config, k, v)
+
+# set up logging
+log_file_path = app_dir / "logs/app.log"
+if not log_file_path.exists():
+    log_file_path.touch()
+
+logging.basicConfig(
+    filename=log_file_path,
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.info("Config loaded")
