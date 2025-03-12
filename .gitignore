@@ -6,3 +6,4 @@ config.yaml
 __pycache__/
 cache/
 logs/
+scratch.txt

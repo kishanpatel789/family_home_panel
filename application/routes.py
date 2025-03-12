@@ -79,7 +79,7 @@ def process_rain_snow(weather: dict) -> tuple:
     return (rain_mmh, snow_mmh)
 
 def timestamp_to_date_hour(timestamp: int) -> str:
-    return datetime.fromtimestamp(timestamp).strftime("%m-%d %H")
+    return datetime.fromtimestamp(timestamp).strftime("%H:%M")
 
 def update_weather_cache() -> models.WeatherCache:
     cw = get_current_weather()
