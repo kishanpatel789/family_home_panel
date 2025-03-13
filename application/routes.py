@@ -12,6 +12,11 @@ from flask import current_app as app
 from .weather import get_weather, WEATHER_EMOJI_MAP
 
 
+
+
+
+
+
 @app.route("/")
 def home():
     weather_dict = get_weather()
@@ -20,9 +25,7 @@ def home():
         "index.html",
         weather=weather_dict,
         weather_emoji_map=WEATHER_EMOJI_MAP,
-        events_today=None,
-        events_tomorrow=None,
-        meals=None,
+        events=None,
     )
 
 

@@ -31,7 +31,18 @@ class WeatherCache(BaseModel):
         return datetime.fromtimestamp(self.timestamp).strftime("%m-%d %H:%M")
 
 class Event(BaseModel):
+    calendar: str
     summary: str
+    full_day: bool = False
     start: datetime
     end: datetime
-    location: str
+    location: str | None = None
+    directions: str | None = None
+
+class EventCache(BaseModel):
+    timestamp: int
+    events_today: list[Event]
+    meals_today: list[str] = []
+    events_tomorrow: list[Event]
+    meals_tomorrow: list[str] = []
+    

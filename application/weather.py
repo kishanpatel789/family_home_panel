@@ -10,14 +10,15 @@ from . import models
 from .config import logger
 
 
-config = app.config["APP_CONFIG"]["weather"]
-LAT = config["lat"]
-LON = config["lon"]
-API_KEY = config["api_key"]
-UNITS = config.get("units", "metric")
-NUM_DAYS = int(config.get("num_days", 3))
-BASE_URL = config.get("base_url", "https://api.openweathermap.org/data/2.5")
-
+CONFIG = app.config["APP_CONFIG"]["weather"]
+LAT = CONFIG["lat"]
+LON = CONFIG["lon"]
+API_KEY = CONFIG["api_key"]
+UNITS = CONFIG.get("units", "metric")
+NUM_DAYS = int(CONFIG.get("num_days", 3))
+BASE_URL = CONFIG.get("base_url", "https://api.openweathermap.org/data/2.5")
+CACHE_FILE = CONFIG["cache_file"]
+CACHE_TTL = CONFIG["cache_ttl"]
 
 WEATHER_EMOJI_MAP = {
     "01d": "\u2600",  # sun
@@ -41,7 +42,7 @@ WEATHER_EMOJI_MAP = {
 }
 
 
-def get_current_weather() -> dict:
+def call_api_current_weather() -> dict:
     url = f"{BASE_URL}/weather?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}"
     response = requests.get(url)
     response.raise_for_status()
@@ -50,7 +51,7 @@ def get_current_weather() -> dict:
     return current_weather
 
 
-def get_forecast_weather() -> list:
+def call_api_forecast_weather() -> list:
     url = f"{BASE_URL}/forecast?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}&cnt={NUM_DAYS*8}"
     response = requests.get(url)
     response.raise_for_status()
@@ -76,7 +77,7 @@ def timestamp_to_date_hour(timestamp: int) -> str:
 
 
 def update_weather_cache() -> models.WeatherCache:
-    cw = get_current_weather()
+    cw = call_api_current_weather()
     rain_mmh, snow_mmh = process_rain_snow(cw)
     current_weather_model = models.CurrentWeather(
         condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
@@ -89,7 +90,7 @@ def update_weather_cache() -> models.WeatherCache:
         snow=snow_mmh,
     )
 
-    fw = get_forecast_weather()
+    fw = call_api_forecast_weather()
     forecast_weather_models = []
     for f in fw:
         _forecast_model = models.HourForecast(
@@ -107,21 +108,21 @@ def update_weather_cache() -> models.WeatherCache:
         forecast=forecast_weather_models,
     )
 
-    with open(config["cache_file"], "wt") as cache_file:
+    with open(CACHE_FILE, "wt") as cache_file:
         json.dump(weather_cache.model_dump(), cache_file, indent=4)
 
     return weather_cache
 
 
 def get_cached_weather() -> models.WeatherCache:
-    with open(config["cache_file"], "rt") as cache_file:
+    with open(CACHE_FILE, "rt") as cache_file:
         try:
             cache_data = models.WeatherCache(**json.load(cache_file))
         except ValidationError as e:
             logger.error(e)
             return update_weather_cache()
 
-    cache_expiration_timestamp = cache_data.timestamp + config["cache_ttl"]
+    cache_expiration_timestamp = cache_data.timestamp + CACHE_TTL
     if time.time() < cache_expiration_timestamp:
         logger.info("Using fresh cache.")
         return cache_data
