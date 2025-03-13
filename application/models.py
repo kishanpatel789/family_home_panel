@@ -29,3 +29,9 @@ class WeatherCache(BaseModel):
     def formatted_timestamp(self) -> str:
         """Convert timestamp into human-readable string"""
         return datetime.fromtimestamp(self.timestamp).strftime("%m-%d %H:%M")
+
+class Event(BaseModel):
+    summary: str
+    start: datetime
+    end: datetime
+    location: str

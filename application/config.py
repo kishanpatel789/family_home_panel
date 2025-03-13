@@ -11,11 +11,21 @@ with open(config_file_path, "rt") as config_file:
     config_data = yaml.safe_load(config_file)
 
     # update relative paths if needed
-    config_data_weather = config_data["API_CONFIG"]["weather"]
+    config_data_weather = config_data["APP_CONFIG"]["weather"]
     if config_data_weather["cache_file_relative"]:
-        _weather_cache_file_path = app_dir / config_data_weather["cache_file"]
-        _weather_cache_file_path = _weather_cache_file_path.resolve()
-        config_data_weather["cache_file"] = _weather_cache_file_path
+        config_data_weather["cache_file"] = (
+            app_dir / config_data_weather["cache_file"]
+        ).resolve()
+
+    config_data_events = config_data["APP_CONFIG"]["events"]
+    if config_data_events["cache_file_relative"]:
+        config_data_events["cache_file"] = (
+            app_dir / config_data_events["cache_file"]
+        ).resolve()
+    if config_data_events["key_file_relative"]:
+        config_data_events["key_file"] = (
+            app_dir / config_data_events["key_file"]
+        ).resolve()
 
 
 class Config:
