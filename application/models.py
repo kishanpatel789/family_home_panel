@@ -39,12 +39,17 @@ class Event(BaseModel):
     location: str | None = None
     directions: str | None = None
 
+class Food(BaseModel):
+    summary: str
+    start: datetime
+    end: datetime
+
 class EventsCache(BaseModel):
     timestamp: int
     events_today: list[Event]
-    meals_today: list[str] = []
+    meals_today: list[Food] = []
     events_tomorrow: list[Event]
-    meals_tomorrow: list[str] = []
+    meals_tomorrow: list[Food] = []
     
     @property
     def formatted_timestamp(self) -> str:

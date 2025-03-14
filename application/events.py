@@ -20,6 +20,7 @@ CONFIG: dict = app.config["APP_CONFIG"]["events"]
 KEY_FILE: str = CONFIG["key_file"]
 TIMEZONE: str = CONFIG.get("timezone", "America/Chicago")
 EVENT_CALENDARS: dict = CONFIG["event_calendars"]
+FOOD_CALENDAR_ID: str = CONFIG["food_calendar"]["id"]
 GOOGLE_MAPS_BASE_URL: str = CONFIG["google_maps_base_url"]
 GOOGLE_MAPS_API_VERSION: str = CONFIG["google_maps_api_version"]
 DIRECTION_ORIGIN: str = CONFIG["direction_origin"]
@@ -84,6 +85,8 @@ def sort_events(events: list[models.Event]) -> list[models.Event]:
 def update_events_cache() -> models.EventsCache:
     events_today = []
     events_tomorrow = []
+    meals_today = []
+    meals_tomorrow = []
 
     for cal_name, cal_info in EVENT_CALENDARS.items():
         events = call_api_events(cal_info["id"])
@@ -122,10 +125,30 @@ def update_events_cache() -> models.EventsCache:
                 if tomorrow_midnight <= e_model.start < two_days_midnight:
                     events_tomorrow.append(e_model)
 
+    food_events = call_api_events(FOOD_CALENDAR_ID)
+
+    for f in food_events:
+        if "date" in f["start"]:  # full day "event"
+            f_model = models.Food(
+                summary=f["summary"],
+                start=datetime.fromisoformat(f["start"]["date"]).astimezone(
+                    ZoneInfo(TIMEZONE)
+                ),
+                end=datetime.fromisoformat(f["end"]["date"]).astimezone(
+                    ZoneInfo(TIMEZONE)
+                ),
+            )
+            if f_model.start <= today_midnight < f_model.end:
+                meals_today.append(f_model)
+            if f_model.start <= tomorrow_midnight < f_model.end:
+                meals_tomorrow.append(f_model)
+
     events_cache = models.EventsCache(
         timestamp=int(time.time()),
         events_today=sort_events(events_today),
+        meals_today=meals_today,
         events_tomorrow=sort_events(events_tomorrow),
+        meals_tomorrow=meals_tomorrow,
     )
 
     with open(CACHE_FILE, "wt") as cache_file:
@@ -151,6 +174,18 @@ def get_cached_events() -> models.EventsCache:
         return update_events_cache()
 
 
+def format_events(events_cache_dict: dict) -> dict:
+    for event_day in ["events_today", "events_tomorrow"]:
+        for e in events_cache_dict[event_day]:
+            e["start"] = e["start"].strftime("%H:%M")
+            e["end"] = e["end"].strftime("%H:%M")
+
+            if e["location"] in CONFIG["common_locations"]:
+                e["location"] = CONFIG["common_locations"][e["location"]]
+
+    return events_cache_dict
+
+
 def get_events() -> dict:
     """Returns events data to be used in jinja template; relies on cache
 
@@ -161,12 +196,6 @@ def get_events() -> dict:
     events_cache_dict = events_cache.model_dump()
     events_cache_dict["last_updated"] = events_cache.formatted_timestamp
 
-    for e in events_cache_dict["events_today"]:
-        e["start"] = e["start"].strftime("%H:%M")
-        e["end"] = e["end"].strftime("%H:%M")
-    for e in events_cache_dict["events_tomorrow"]:
-        e["start"] = e["start"].strftime("%H:%M")
-        e["end"] = e["end"].strftime("%H:%M")
-
+    events_cache_dict = format_events(events_cache_dict)
 
     return events_cache_dict

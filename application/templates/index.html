@@ -74,7 +74,7 @@
         </p>
       </div>
 
-      <div class="w-full max-w-3xl bg-gray-100 p-6 rounded-lg shadow-lg">
+      <div class="w-full max-w-3xl bg-gray-100 p-6 rounded-lg">
         <div class="flex gap-4">
           <!-- Today's Events Column -->
           <div class="flex-1 min-w-[60%] p-2">
@@ -93,7 +93,7 @@
                 </p>
                 {% endif %} {% if event.location %}
                 <p class="text-sm text-gray-500">
-                  📍 {% if event.directions %}
+                  {% if event.directions %}
                   <a
                     href="{{ event.directions }}"
                     class="text-blue-500 underline"
@@ -109,6 +109,18 @@
               <p class="text-gray-500">No events for today.</p>
               {% endif %}
             </div>
+            <!-- Meals for Today -->
+            <hr class="my-4 border-gray-300" />
+            <h2 class="text-md font-semibold mb-2">Meals</h2>
+            <ul class="space-y-2">
+              {% if events.meals_today %} {% for meal in events.meals_today %}
+              <li class="p-2 bg-white rounded-lg shadow-sm">
+                {{ meal.summary }}
+              </li>
+              {% endfor %} {% else %}
+              <p class="text-gray-500">No meals planned.</p>
+              {% endif %}
+            </ul>
           </div>
 
           <!-- Tomorrow's Events Column -->
@@ -129,7 +141,7 @@
                 </p>
                 {% endif %} {% if event.location %}
                 <p class="text-sm text-gray-500">
-                  📍 {% if event.directions %}
+                  {% if event.directions %}
                   <a
                     href="{{ event.directions }}"
                     class="text-blue-500 underline"
@@ -145,6 +157,19 @@
               <p class="text-gray-500">No events for tomorrow.</p>
               {% endif %}
             </div>
+            <!-- Meals for Tomorrow -->
+            <hr class="my-4 border-gray-300" />
+            <h2 class="text-md font-semibold mb-2">Meals</h2>
+            <ul class="space-y-2">
+              {% if events.meals_tomorrow %} {% for meal in
+              events.meals_tomorrow %}
+              <li class="p-2 bg-white rounded-lg shadow-sm">
+                {{ meal.summary }}
+              </li>
+              {% endfor %} {% else %}
+              <p class="text-gray-500">No meals planned.</p>
+              {% endif %}
+            </ul>
           </div>
         </div>
         <p class="text-xs text-gray-500 text-center">
@@ -152,21 +177,7 @@
         </p>
       </div>
 
-      <!-- Meals Section -->
-      <div class="p-4 bg-red-100 rounded-lg">
-        <h2 class="text-lg font-semibold">Meals</h2>
-        {% if meals %}
-        <ul>
-          {% for meal in meals %}
-          <li class="text-gray-700">{{ meal.time }} - {{ meal.name }}</li>
-          {% else %}
-          <li class="text-gray-500">No meals planned</li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-gray-500">No meals planned</p>
-        {% endif %}
-      </div>
+      
     </div>
   </body>
 </html>
