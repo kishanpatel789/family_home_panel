@@ -15,7 +15,7 @@ LAT = CONFIG["lat"]
 LON = CONFIG["lon"]
 API_KEY = CONFIG["api_key"]
 UNITS = CONFIG.get("units", "metric")
-NUM_DAYS = int(CONFIG.get("num_days", 3))
+NUM_DAYS = CONFIG.get("num_days", 3)
 BASE_URL = CONFIG.get("base_url", "https://api.openweathermap.org/data/2.5")
 CACHE_FILE = CONFIG["cache_file"]
 CACHE_TTL = CONFIG["cache_ttl"]
@@ -115,12 +115,12 @@ def update_weather_cache() -> models.WeatherCache:
 
 
 def get_cached_weather() -> models.WeatherCache:
-    with open(CACHE_FILE, "rt") as cache_file:
-        try:
+    try:
+        with open(CACHE_FILE, "rt") as cache_file:
             cache_data = models.WeatherCache(**json.load(cache_file))
-        except ValidationError as e:
-            logger.error(e)
-            return update_weather_cache()
+    except (ValidationError, FileNotFoundError) as e:
+        logger.error(e)
+        return update_weather_cache()
 
     cache_expiration_timestamp = cache_data.timestamp + CACHE_TTL
     if time.time() < cache_expiration_timestamp:

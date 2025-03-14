@@ -74,6 +74,89 @@
         </p>
       </div>
 
+      <div class="flex gap-4">
+        <!-- Today's Events Column -->
+        <div class="flex-1 min-w-[60%] p-4 bg-gray-100 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-2">Today</h2>
+          <div class="space-y-3">
+            {% if events.events_today %} {% for event in events.events_today %}
+            <div
+              class="p-3 rounded-lg shadow-sm border-l-4 {{ event.calendar | lower | replace(' ', '-') }}-border"
+            >
+              <h3 class="font-semibold text-lg">{{ event.summary }}</h3>
+              {% if not event.full_day %}
+              <p class="text-sm text-gray-600">
+                {{ event.start }} - {{ event.end }}
+              </p>
+              {% endif %} {% if event.location %}
+              <p class="text-sm text-gray-500">
+                📍 {% if event.directions %}
+                <a
+                  href="{{ event.directions }}"
+                  class="text-blue-500 underline"
+                  target="_blank"
+                >
+                  {{ event.location }}
+                </a>
+                {% else %} {{ event.location }} {% endif %}
+              </p>
+              {% endif %}
+            </div>
+            {% endfor %} {% else %}
+            <p class="text-gray-500">No events for today.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Tomorrow's Events Column -->
+        <div class="flex-1 min-w-[40%] p-4 bg-gray-100 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-2">Tomorrow</h2>
+          <div class="space-y-3">
+            {% if events.events_tomorrow %} {% for event in
+            events.events_tomorrow %}
+            <div
+              class="p-3 rounded-lg shadow-sm border-l-4 {{ event.calendar | lower | replace(' ', '-') }}-border"
+            >
+              <h3 class="font-semibold text-lg">{{ event.summary }}</h3>
+              {% if not event.full_day %}
+
+              <p class="text-sm text-gray-600">
+                {{ event.start }} - {{ event.end }}
+              </p>
+              {% endif %} {% if event.location %}
+              <p class="text-sm text-gray-500">
+                📍 {% if event.directions %}
+                <a
+                  href="{{ event.directions }}"
+                  class="text-blue-500 underline"
+                  target="_blank"
+                >
+                  {{ event.location }}
+                </a>
+                {% else %} {{ event.location }} {% endif %}
+              </p>
+              {% endif %}
+            </div>
+            {% endfor %} {% else %}
+            <p class="text-gray-500">No events for tomorrow.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Tailwind Custom Calendar Colors -->
+      <style>
+        .other-border {
+          border-color: #f59e0b;
+        } /* Example color for "Other" calendar */
+        .work-border {
+          border-color: #3b82f6;
+        } /* Example color for "Work" calendar */
+        .personal-border {
+          border-color: #10b981;
+        } /* Example color for "Personal" calendar */
+      </style>
+
       <!-- Today's Events -->
       <div class="mb-6 p-4 bg-green-100 rounded-lg">
         <h2 class="text-lg font-semibold">Today's Events</h2>

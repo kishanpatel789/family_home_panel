@@ -10,7 +10,7 @@ from flask import (
 from flask import current_app as app
 
 from .weather import get_weather, WEATHER_EMOJI_MAP
-
+from .events import get_events
 
 
 
@@ -20,15 +20,16 @@ from .weather import get_weather, WEATHER_EMOJI_MAP
 @app.route("/")
 def home():
     weather_dict = get_weather()
+    events_dict = get_events()
 
     return render_template(
         "index.html",
         weather=weather_dict,
         weather_emoji_map=WEATHER_EMOJI_MAP,
-        events=None,
+        events=events_dict,
     )
 
 
 @app.route("/test")
 def test():
-    return app.config
+    return get_events()

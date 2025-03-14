@@ -1,6 +1,9 @@
+import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
+from urllib.parse import urlencode
+import time
 
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -13,13 +16,15 @@ from pydantic import ValidationError
 from . import models
 from .config import logger
 
-CONFIG = app.config["APP_CONFIG"]["events"]
-KEY_FILE = CONFIG["key_file"]
-TIMEZONE = CONFIG.get("timezone", "America/Chicago")
-EVENT_CALENDARS = CONFIG["event_calendars"]
-DIRECTION_ORIGIN = CONFIG["direction_origin"]
-CACHE_FILE = CONFIG["cache_file"]
-CACHE_TTL = CONFIG["cache_ttl"]
+CONFIG: dict = app.config["APP_CONFIG"]["events"]
+KEY_FILE: str = CONFIG["key_file"]
+TIMEZONE: str = CONFIG.get("timezone", "America/Chicago")
+EVENT_CALENDARS: dict = CONFIG["event_calendars"]
+GOOGLE_MAPS_BASE_URL: str = CONFIG["google_maps_base_url"]
+GOOGLE_MAPS_API_VERSION: str = CONFIG["google_maps_api_version"]
+DIRECTION_ORIGIN: str = CONFIG["direction_origin"]
+CACHE_FILE: str = CONFIG["cache_file"]
+CACHE_TTL: int = CONFIG["cache_ttl"]
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
@@ -29,76 +34,131 @@ credentials = service_account.Credentials.from_service_account_file(
 )
 service = build("calendar", "v3", credentials=credentials)
 
-
-
+today_midnight = (
+    datetime.today().astimezone(ZoneInfo(TIMEZONE)).replace(hour=0, minute=0, second=0)
+)
+tomorrow_midnight = today_midnight + timedelta(days=1)
+two_days_midnight = today_midnight + timedelta(days=2)
 
 
 def call_api_events(calendar_id) -> list[dict]:
-    today_midnight = (
-        datetime.today()
-        .astimezone(ZoneInfo(TIMEZONE))
-        .replace(hour=0, minute=0, second=0)
-    )
-    two_days_later = today_midnight + timedelta(days=2)
-    dt_format_rfc3339 = "%Y-%m-%dT%H:%M:%S%:z"
 
+    logger.info(f"Calling Google Calendar API for events from {calendar_id}")
     events_result = (
         service.events()
         .list(
             calendarId=calendar_id,
-            timeMin=today_midnight.strftime(dt_format_rfc3339),
-            timeMax=two_days_later.strftime(dt_format_rfc3339),
+            timeMin=today_midnight.isoformat(),
+            timeMax=two_days_midnight.isoformat(),
             singleEvents=True,
-            maxResults=50,
+            orderBy="startTime",
+            maxResults=10,
         )
         .execute()
     )
     events = events_result.get("items", [])
+    logger.info(f"    Received {len(events)} events from Google Calendar API")
 
     return events
 
-def update_weather_cache() -> models.WeatherCache:
-    cw = call_api_current_weather()
-    rain_mmh, snow_mmh = process_rain_snow(cw)
-    current_weather_model = models.CurrentWeather(
-        condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
-        icon=cw["weather"][0]["icon"],
-        temperature=round(cw["main"]["temp"]),
-        wind_speed=round(cw["wind"]["speed"] / 1000 * 60 * 60),  # convert m/s to km/hr
-        wind_deg=cw["wind"]["deg"],
-        cloud_coverage=cw["clouds"]["all"],
-        rain=rain_mmh,
-        snow=snow_mmh,
-    )
 
-    fw = call_api_forecast_weather()
-    forecast_weather_models = []
-    for f in fw:
-        _forecast_model = models.HourForecast(
-            timestamp=f["dt"],
-            condition=f"{f['weather'][0]['main']} - {f['weather'][0]['description']}",
-            icon=f["weather"][0]["icon"],
-            temperature=round(f["main"]["temp"]),
-            precipitation_chance=f["pop"] * 100,
+def create_directions_url(location: str | None) -> str | None:
+    if location is not None and location != DIRECTION_ORIGIN:
+
+        url_query = urlencode(
+            {
+                "api": GOOGLE_MAPS_API_VERSION,
+                "origin": DIRECTION_ORIGIN,
+                "destination": location,
+            }
         )
-        forecast_weather_models.append(_forecast_model)
+        dir_url = f"{GOOGLE_MAPS_BASE_URL}/?{url_query}"
 
-    weather_cache = models.WeatherCache(
+        return dir_url
+
+
+def sort_events(events: list[models.Event]) -> list[models.Event]:
+    return sorted(events, key=lambda x: (not x.full_day, x.start, x.summary))
+
+
+def update_events_cache() -> models.EventsCache:
+    events_today = []
+    events_tomorrow = []
+
+    for cal_name, cal_info in EVENT_CALENDARS.items():
+        events = call_api_events(cal_info["id"])
+
+        for e in events:
+            if "date" in e["start"]:  # full day event
+                e_model = models.Event(
+                    calendar=cal_name,
+                    summary=e["summary"],
+                    full_day=True,
+                    start=datetime.fromisoformat(e["start"]["date"]).astimezone(
+                        ZoneInfo(TIMEZONE)
+                    ),
+                    end=datetime.fromisoformat(e["end"]["date"]).astimezone(
+                        ZoneInfo(TIMEZONE)
+                    ),
+                    location=e.get("location"),
+                    directions=create_directions_url(e.get("location")),
+                )
+                if e_model.start <= today_midnight < e_model.end:
+                    events_today.append(e_model)
+                if e_model.start <= tomorrow_midnight < e_model.end:
+                    events_tomorrow.append(e_model)
+
+            elif "dateTime" in e["start"]:  # timed event
+                e_model = models.Event(
+                    calendar=cal_name,  # change later
+                    summary=e["summary"],
+                    start=datetime.fromisoformat(e["start"]["dateTime"]),
+                    end=datetime.fromisoformat(e["end"]["dateTime"]),
+                    location=e.get("location"),
+                    directions=create_directions_url(e.get("location")),
+                )
+                if today_midnight <= e_model.start < tomorrow_midnight:
+                    events_today.append(e_model)
+                if tomorrow_midnight <= e_model.start < two_days_midnight:
+                    events_tomorrow.append(e_model)
+
+    events_cache = models.EventsCache(
         timestamp=int(time.time()),
-        current=current_weather_model,
-        forecast=forecast_weather_models,
+        events_today=sort_events(events_today),
+        events_tomorrow=sort_events(events_tomorrow),
     )
 
     with open(CACHE_FILE, "wt") as cache_file:
-        json.dump(weather_cache.model_dump(), cache_file, indent=4)
+        cache_file.write(events_cache.model_dump_json(indent=4))
 
-    return weather_cache
+    return events_cache
 
 
-for event in events:
-    print(
-        event["summary"],
-        event.get("start", {}).get("dateTime", "No start time"),
-        event.get("end", {}).get("dateTime", "No end time"),
-        event.get("location", "No location"),
-    )
+def get_cached_events() -> models.EventsCache:
+    try:
+        with open(CACHE_FILE, "rt") as cache_file:
+            cache_data = models.EventsCache(**json.load(cache_file))
+    except (ValidationError, FileNotFoundError) as e:
+        logger.error(e)
+        return update_events_cache()
+
+    cache_expiration_timestamp = cache_data.timestamp + CACHE_TTL
+    if time.time() < cache_expiration_timestamp:
+        logger.info("Using fresh cache.")
+        return cache_data
+    else:
+        logger.info("Cache expired. Refreshing cache.")
+        return update_events_cache()
+
+
+def get_events() -> dict:
+    """Returns events data to be used in jinja template; relies on cache
+
+    Returns:
+        _type_: _description_
+    """
+    events_cache = get_cached_events()
+    events_cache_dict = events_cache.model_dump()
+    events_cache_dict["last_updated"] = events_cache.formatted_timestamp
+
+    return events_cache_dict
