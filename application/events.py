@@ -161,4 +161,12 @@ def get_events() -> dict:
     events_cache_dict = events_cache.model_dump()
     events_cache_dict["last_updated"] = events_cache.formatted_timestamp
 
+    for e in events_cache_dict["events_today"]:
+        e["start"] = e["start"].strftime("%H:%M")
+        e["end"] = e["end"].strftime("%H:%M")
+    for e in events_cache_dict["events_tomorrow"]:
+        e["start"] = e["start"].strftime("%H:%M")
+        e["end"] = e["end"].strftime("%H:%M")
+
+
     return events_cache_dict
