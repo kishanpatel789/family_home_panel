@@ -16,12 +16,12 @@
       <!-- Weather Section -->
       <div class="mb-6 p-4 bg-blue-100 rounded-lg">
         <div
-          class="flex space-x-4 justify-center items-center bg-gray-800 text-white rounded-2xl p-3"
+          class="flex flex-col sm:flex-row space-x-4 justify-center items-center bg-gray-800 text-white rounded-2xl p-3"
         >
           <div class="text-8xl p-4">
             {{ weather_emoji_map[weather.current.icon] }}
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col text-center sm:text-left">
             <p class="text-2xl font-bold">
               {{ weather.current.temperature}}&#176;C
             </p>
@@ -69,13 +69,13 @@
           </div>
         </div>
 
-        <p class="text-xs text-gray-500 text-center">
+        <p class="text-xs text-gray-500 text-center pt-2">
           Last updated {{ weather.last_updated }}
         </p>
       </div>
 
-      <div class="w-full max-w-3xl bg-gray-100 p-6 rounded-lg">
-        <div class="flex gap-4">
+      <div class="w-full max-w-3xl bg-gray-100 p-2 sm:p-4 rounded-lg">
+        <div class="flex flex-col sm:flex-row gap-4">
           <!-- Today's Events Column -->
           <div class="flex-1 min-w-[60%] p-2">
             <h2 class="text-xl font-semibold mb-2">Today</h2>
@@ -172,7 +172,7 @@
             </ul>
           </div>
         </div>
-        <p class="text-xs text-gray-500 text-center">
+        <p class="text-xs text-gray-500 text-center pt-2">
           Last updated {{ events.last_updated }}
         </p>
       </div>
