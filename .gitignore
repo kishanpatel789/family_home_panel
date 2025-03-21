@@ -8,3 +8,4 @@ cache/
 logs/
 scratch.txt
 scratch.py
+node_modules/
