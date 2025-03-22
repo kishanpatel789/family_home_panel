@@ -7,10 +7,7 @@ import time
 
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-
-
 from flask import current_app as app
-import requests
 from pydantic import ValidationError
 
 from . import models
@@ -35,23 +32,18 @@ credentials = service_account.Credentials.from_service_account_file(
 )
 service = build("calendar", "v3", credentials=credentials)
 
-today_midnight = (
-    datetime.today().astimezone(ZoneInfo(TIMEZONE)).replace(hour=0, minute=0, second=0)
-)
-tomorrow_midnight = today_midnight + timedelta(days=1)
-two_days_midnight = today_midnight + timedelta(days=2)
 
-
-def call_api_events(calendar_id) -> list[dict]:
+def call_api_events(
+    calendar_id: str, start_dt: datetime, end_dt: datetime
+) -> list[dict]:
 
     logger.info(f"Calling Google Calendar API for events from {calendar_id}")
-    logger.debug(f"    Time range: {today_midnight} - {two_days_midnight}")
     events_result = (
         service.events()
         .list(
             calendarId=calendar_id,
-            timeMin=today_midnight.isoformat(),
-            timeMax=two_days_midnight.isoformat(),
+            timeMin=start_dt.isoformat(),
+            timeMax=end_dt.isoformat(),
             singleEvents=True,
             orderBy="startTime",
             maxResults=10,
@@ -84,13 +76,21 @@ def sort_events(events: list[models.Event]) -> list[models.Event]:
 
 
 def update_events_cache() -> models.EventsCache:
+    today_midnight = (
+        datetime.today()
+        .astimezone(ZoneInfo(TIMEZONE))
+        .replace(hour=0, minute=0, second=0)
+    )
+    tomorrow_midnight = today_midnight + timedelta(days=1)
+    two_days_midnight = today_midnight + timedelta(days=2)
+
     events_today = []
     events_tomorrow = []
     meals_today = []
     meals_tomorrow = []
 
     for cal_name, cal_info in EVENT_CALENDARS.items():
-        events = call_api_events(cal_info["id"])
+        events = call_api_events(cal_info["id"], today_midnight, two_days_midnight)
 
         for e in events:
             if "date" in e["start"]:  # full day event
@@ -126,7 +126,7 @@ def update_events_cache() -> models.EventsCache:
                 if tomorrow_midnight <= e_model.start < two_days_midnight:
                     events_tomorrow.append(e_model)
 
-    food_events = call_api_events(FOOD_CALENDAR_ID)
+    food_events = call_api_events(FOOD_CALENDAR_ID, today_midnight, two_days_midnight)
 
     for f in food_events:
         if "date" in f["start"]:  # full day "event"
