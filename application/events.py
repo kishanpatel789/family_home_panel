@@ -45,6 +45,7 @@ two_days_midnight = today_midnight + timedelta(days=2)
 def call_api_events(calendar_id) -> list[dict]:
 
     logger.info(f"Calling Google Calendar API for events from {calendar_id}")
+    logger.debug(f"    Time range: {today_midnight} - {two_days_midnight}")
     events_result = (
         service.events()
         .list(

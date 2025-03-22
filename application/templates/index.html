@@ -93,8 +93,8 @@
                   {{ event.start }} &ndash; {{ event.end }}
                 </p>
                 {% endif %} {% if event.location %}
-                <p class="text-sm text-gray-500">
-                  {% if event.directions %}
+                <p class="text-sm text-gray-600">
+                  {% if event.directions and event.location != 'Home' %}
                   <a
                     href="{{ event.directions }}"
                     class="text-blue-500 underline"
@@ -141,8 +141,8 @@
                   {{ event.start }} &ndash; {{ event.end }}
                 </p>
                 {% endif %} {% if event.location %}
-                <p class="text-sm text-gray-500">
-                  {% if event.directions %}
+                <p class="text-sm text-gray-600">
+                  {% if event.directions and event.location != 'Home' %}
                   <a
                     href="{{ event.directions }}"
                     class="text-blue-500 underline"
