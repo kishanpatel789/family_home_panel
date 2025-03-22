@@ -1,6 +1,7 @@
 import json
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import current_app as app
 import requests
@@ -11,6 +12,7 @@ from .config import logger
 
 
 CONFIG = app.config["APP_CONFIG"]["weather"]
+TIMEZONE = CONFIG["timezone"]
 LAT = CONFIG["lat"]
 LON = CONFIG["lon"]
 API_KEY = CONFIG["api_key"]
@@ -73,7 +75,11 @@ def process_rain_snow(weather: dict) -> tuple:
 
 
 def timestamp_to_date_hour(timestamp: int) -> str:
-    return datetime.fromtimestamp(timestamp).strftime("%H:%M")
+    return (
+        datetime.fromtimestamp(timestamp)
+        .astimezone(ZoneInfo(TIMEZONE))
+        .strftime("%H:%M")
+    )
 
 
 def update_weather_cache() -> models.WeatherCache:
