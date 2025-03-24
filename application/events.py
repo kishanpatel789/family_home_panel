@@ -181,10 +181,11 @@ def format_events(events_cache_dict: dict) -> dict:
             e["start"] = e["start"].strftime("%H:%M")
             e["end"] = e["end"].strftime("%H:%M")
 
-            for root_address, friendly_name in CONFIG["common_locations"].items():
-                if root_address.lower() in e["location"].lower():
-                    e["location"] = friendly_name
-                    break
+            if e["location"] is not None:
+                for root_address, friendly_name in CONFIG["common_locations"].items():
+                    if root_address.lower() in e["location"].lower():
+                        e["location"] = friendly_name
+                        break
 
     return events_cache_dict
 
