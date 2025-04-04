@@ -13,10 +13,6 @@ from .weather import get_weather, WEATHER_EMOJI_MAP
 from .events import get_events
 
 
-
-
-
-
 @app.route("/")
 def home():
     weather_dict = get_weather()
@@ -28,8 +24,3 @@ def home():
         weather_emoji_map=WEATHER_EMOJI_MAP,
         events=events_dict,
     )
-
-
-@app.route("/test")
-def test():
-    return get_events()

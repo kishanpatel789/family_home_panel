@@ -45,6 +45,11 @@ WEATHER_EMOJI_MAP = {
 
 
 def call_api_current_weather() -> dict:
+    """Call OpenWeather API and return current weather data.
+
+    Returns:
+        dict: JSON response from API as python dict
+    """
     url = f"{BASE_URL}/weather?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}"
     response = requests.get(url)
     response.raise_for_status()
@@ -54,6 +59,11 @@ def call_api_current_weather() -> dict:
 
 
 def call_api_forecast_weather() -> list:
+    """Call OpenWeather API and return 3-hour forecast weather data.
+
+    Returns:
+        dict: JSON response from API as python dict
+    """
     url = f"{BASE_URL}/forecast?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}&cnt={NUM_DAYS*8}"
     response = requests.get(url)
     response.raise_for_status()
@@ -62,7 +72,15 @@ def call_api_forecast_weather() -> list:
     return forecast_weather
 
 
-def process_rain_snow(weather: dict) -> tuple:
+def process_rain_snow(weather: dict) -> tuple[int, int] | tuple[None, None]:
+    """Parse API response for rain and snow data, if available.
+
+    Args:
+        weather (dict): API response for current weather
+
+    Returns:
+        tuple[int, int]: Rain and snow data in mm/h
+    """
     rain_mmh = None
     snow_mmh = None
 
@@ -75,6 +93,16 @@ def process_rain_snow(weather: dict) -> tuple:
 
 
 def timestamp_to_date_hour(timestamp: int) -> str:
+    """Converts timestamp to local time in HH:MM format.
+    Uses timezone set in config.
+
+    Args:
+        timestamp (int): Timestamp to convert
+
+    Returns:
+        str: Timestamp as local time in HH:MM format
+    """
+
     return (
         datetime.fromtimestamp(timestamp)
         .astimezone(ZoneInfo(TIMEZONE))
@@ -83,6 +111,13 @@ def timestamp_to_date_hour(timestamp: int) -> str:
 
 
 def update_weather_cache() -> models.WeatherCache:
+    """Calls OpenWeather API and updates weather cache.
+    Cache is stored in local json file and returned as pydantic model.
+
+    Returns:
+        models.WeatherCache: Pydantic model of weather cache
+    """
+
     cw = call_api_current_weather()
     rain_mmh, snow_mmh = process_rain_snow(cw)
     current_weather_model = models.CurrentWeather(
@@ -121,6 +156,12 @@ def update_weather_cache() -> models.WeatherCache:
 
 
 def get_cached_weather() -> models.WeatherCache:
+    """Get cached weather if available. Else refresh cache and return results.
+
+    Returns:
+        models.WeatherCache: Pydantic model of weather
+    """
+
     try:
         with open(CACHE_FILE, "rt") as cache_file:
             cache_data = models.WeatherCache(**json.load(cache_file))
@@ -141,7 +182,7 @@ def get_weather() -> dict:
     """Returns weather data to be used in jinja template; relies on cache
 
     Returns:
-        _type_: _description_
+        dict: Weather data
     """
     weather_cache = get_cached_weather()
     weather_cache_dict = weather_cache.model_dump()

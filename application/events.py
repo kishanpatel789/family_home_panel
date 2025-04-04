@@ -36,8 +36,18 @@ service = build("calendar", "v3", credentials=credentials)
 def call_api_events(
     calendar_id: str, start_dt: datetime, end_dt: datetime
 ) -> list[dict]:
+    """Call Google Calendar API and return events for given calendar and date range.
 
-    logger.info(f"Calling Google Calendar API for events from {calendar_id}")
+    Args:
+        calendar_id (str): Google's ID of the calendar
+        start_dt (datetime): start date to filter calendar events by
+        end_dt (datetime): end date to filter calendar events by
+
+    Returns:
+        list[dict]: list of calendar events returned for given calendar and date range
+    """
+
+    logger.info(f"Calling Google Calendar API for events from '{calendar_id}'")
     events_result = (
         service.events()
         .list(
@@ -57,12 +67,22 @@ def call_api_events(
 
 
 def create_directions_url(location: str | None) -> str | None:
-    if location is not None:
+    """Convert event location (if any) into a directions url.
+    For in-person events, this will be a Google Maps URL with the event location as the destination.
+    For virtual events, this will be the event URL.
+    For events without a location, this will be None.
 
+    Args:
+        location (str | None): Location of event
+
+    Returns:
+        str | None: URL to Google Maps directions or event URL
+    """
+    if location is not None:
         # virtual event
         if "https://" in location:
             return location
-    
+
         # in-person event
         if location != DIRECTION_ORIGIN:
             url_query = urlencode(
@@ -78,10 +98,26 @@ def create_directions_url(location: str | None) -> str | None:
 
 
 def sort_events(events: list[models.Event]) -> list[models.Event]:
+    """Sort events by start time and event name (summary).
+    Full day events appear first.
+
+    Args:
+        events (list[models.Event]): List of event models
+
+    Returns:
+        list[models.Event]: List of event models sorted
+    """
     return sorted(events, key=lambda x: (not x.full_day, x.start, x.summary))
 
 
 def update_events_cache() -> models.EventsCache:
+    """Update local event cache for multiple Google calendars.
+    Captures events for today and tomorrow.
+    Saves events in local json and returns pydantic model.
+
+    Returns:
+        models.EventsCache: Pydantic model of events
+    """
     today_midnight = (
         datetime.today()
         .astimezone(ZoneInfo(TIMEZONE))
@@ -120,7 +156,7 @@ def update_events_cache() -> models.EventsCache:
 
             elif "dateTime" in e["start"]:  # timed event
                 e_model = models.Event(
-                    calendar=cal_name,  # change later
+                    calendar=cal_name,
                     summary=e["summary"],
                     start=datetime.fromisoformat(e["start"]["dateTime"]),
                     end=datetime.fromisoformat(e["end"]["dateTime"]),
@@ -165,6 +201,11 @@ def update_events_cache() -> models.EventsCache:
 
 
 def get_cached_events() -> models.EventsCache:
+    """Get cached events if available. Else refresh cache and return results.
+
+    Returns:
+        models.EventsCache: Pydantic model of events
+    """
     try:
         with open(CACHE_FILE, "rt") as cache_file:
             cache_data = models.EventsCache(**json.load(cache_file))
@@ -182,6 +223,14 @@ def get_cached_events() -> models.EventsCache:
 
 
 def format_events(events_cache_dict: dict) -> dict:
+    """Format event times and common locations for display.
+
+    Args:
+        events_cache_dict (dict): Events cache as python dict
+
+    Returns:
+        dict: Formated events cache
+    """
     for event_day in ["events_today", "events_tomorrow"]:
         for e in events_cache_dict[event_day]:
             e["start"] = e["start"].strftime("%H:%M")
@@ -200,7 +249,7 @@ def get_events() -> dict:
     """Returns events data to be used in jinja template; relies on cache
 
     Returns:
-        _type_: _description_
+        dict: Events data for today and tomorrow
     """
     events_cache = get_cached_events()
     events_cache_dict = events_cache.model_dump()
