@@ -124,7 +124,7 @@ def get_cached_weather() -> models.WeatherCache:
     try:
         with open(CACHE_FILE, "rt") as cache_file:
             cache_data = models.WeatherCache(**json.load(cache_file))
-    except (ValidationError, FileNotFoundError) as e:
+    except (ValidationError, FileNotFoundError, json.decoder.JSONDecodeError) as e:
         logger.error(e)
         return update_weather_cache()
 

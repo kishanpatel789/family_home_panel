@@ -57,18 +57,24 @@ def call_api_events(
 
 
 def create_directions_url(location: str | None) -> str | None:
-    if location is not None and location != DIRECTION_ORIGIN:
+    if location is not None:
 
-        url_query = urlencode(
-            {
-                "api": GOOGLE_MAPS_API_VERSION,
-                "origin": DIRECTION_ORIGIN,
-                "destination": location,
-            }
-        )
-        dir_url = f"{GOOGLE_MAPS_BASE_URL}/?{url_query}"
+        # virtual event
+        if "https://" in location:
+            return location
+    
+        # in-person event
+        if location != DIRECTION_ORIGIN:
+            url_query = urlencode(
+                {
+                    "api": GOOGLE_MAPS_API_VERSION,
+                    "origin": DIRECTION_ORIGIN,
+                    "destination": location,
+                }
+            )
+            dir_url = f"{GOOGLE_MAPS_BASE_URL}/?{url_query}"
 
-        return dir_url
+            return dir_url
 
 
 def sort_events(events: list[models.Event]) -> list[models.Event]:
@@ -162,7 +168,7 @@ def get_cached_events() -> models.EventsCache:
     try:
         with open(CACHE_FILE, "rt") as cache_file:
             cache_data = models.EventsCache(**json.load(cache_file))
-    except (ValidationError, FileNotFoundError) as e:
+    except (ValidationError, FileNotFoundError, json.decoder.JSONDecodeError) as e:
         logger.error(e)
         return update_events_cache()
 
