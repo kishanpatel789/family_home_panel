@@ -1,3 +1,5 @@
+import time
+
 from flask import (
     render_template,
     make_response,
@@ -22,5 +24,28 @@ def home():
         "index.html",
         weather=weather_dict,
         weather_emoji_map=WEATHER_EMOJI_MAP,
+        events=events_dict,
+    )
+
+@app.route("/weather")
+def weather():
+    weather_dict = get_weather()
+
+    time.sleep(5)
+
+    return render_template(
+        "weather.html",
+        weather=weather_dict,
+        weather_emoji_map=WEATHER_EMOJI_MAP,
+    )
+
+@app.route("/events")
+def events():
+    events_dict = get_events()
+
+    time.sleep(5)
+
+    return render_template(
+        "events.html",
         events=events_dict,
     )

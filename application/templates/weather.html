@@ -1,0 +1,49 @@
+<div class="mb-6 p-4 bg-blue-100 rounded-lg">
+  <div
+    class="flex flex-col sm:flex-row space-x-4 justify-center items-center bg-gray-800 text-white rounded-2xl p-3"
+  >
+    <div class="text-8xl p-4">
+      {{ weather_emoji_map[weather.current.icon] }}
+    </div>
+    <div class="flex flex-col text-center sm:text-left">
+      <p class="text-2xl font-bold">{{ weather.current.temperature}}&#176;C</p>
+      <p class="text-gray-200">{{ weather.current.condition }}</p>
+
+      <p class="text-gray-200 text-sm">
+        {{ weather.current.wind_speed }} km/h from {{weather.current.wind_deg
+        }}&#176;
+      </p>
+      <p class="text-gray-200 text-sm">
+        {{ weather.current.cloud_coverage }}% cloudy
+      </p>
+      {% if weather.current.rain %}
+      <p class="text-gray-200 text-xs">{{ weather.current.rain }} mm/h rain</p>
+      {% endif %} {% if weather.current.snow %}
+      <p class="text-gray-200 text-xs">{{ weather.current.snow }} mm/h snow</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="overflow-x-auto py-4">
+    <div class="flex space-x-2">
+      {% for hour in weather.forecast %}
+      <div
+        class="flex flex-col items-center bg-gray-800 text-white rounded-2xl p-3 min-w-18 grow flex-shrink-0"
+      >
+        <span class="text-sm">{{ hour.timestamp }}</span>
+        <span class="text-3xl py-2">{{ weather_emoji_map[hour.icon] }}</span>
+        <span class="text-lg font-semibold">{{ hour.temperature }}&#176;</span>
+        {% if hour.precipitation_chance > 0 %}
+        <span class="text-xs text-blue-400"
+          >{{ hour.precipitation_chance }}%</span
+        >
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <p class="text-xs text-gray-500 text-center pt-2">
+    Last updated {{ weather.last_updated }}
+  </p>
+</div>

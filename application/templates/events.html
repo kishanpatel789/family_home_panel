@@ -1,0 +1,96 @@
+<div class="w-full max-w-3xl bg-gray-100 p-2 sm:p-4 rounded-lg">
+  <div class="flex flex-col sm:flex-row gap-4">
+    <!-- Today's Events Column -->
+    <div class="flex-1 min-w-[60%] p-2">
+      <h2 class="text-xl font-semibold mb-2">Today</h2>
+      <div class="space-y-3">
+        {% if events.events_today %} {% for event in events.events_today %}
+        <div
+          class="p-3 rounded-lg shadow-sm border-l-4 bg-white"
+          style="border-color: {{config['APP_CONFIG']['events']['event_calendars'][event.calendar]['color']}};"
+        >
+          <h3 class="font-semibold text-lg">{{ event.summary }}</h3>
+          {% if not event.full_day %}
+          <p class="text-sm text-gray-600">
+            {{ event.start }} &ndash; {{ event.end }}
+          </p>
+          {% endif %} {% if event.location %}
+          <p class="text-sm text-gray-600">
+            {% if event.directions and event.location != 'Home' %}
+            <a
+              href="{{ event.directions }}"
+              class="text-blue-500 underline"
+              target="_blank"
+            >
+              {{ event.location }}
+            </a>
+            {% else %} {{ event.location }} {% endif %}
+          </p>
+          {% endif %}
+        </div>
+        {% endfor %} {% else %}
+        <p class="text-gray-500">No events for today.</p>
+        {% endif %}
+      </div>
+      <!-- Meals for Today -->
+      <hr class="my-4 border-gray-300" />
+      <h2 class="text-md font-semibold mb-2">Meals</h2>
+      <ul class="space-y-2">
+        {% if events.meals_today %} {% for meal in events.meals_today %}
+        <li class="p-2 bg-white rounded-lg shadow-sm">{{ meal.summary }}</li>
+        {% endfor %} {% else %}
+        <p class="text-gray-500">No meals planned.</p>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- Tomorrow's Events Column -->
+    <div class="flex-1 min-w-[40%] p-2">
+      <h2 class="text-xl font-semibold mb-2">Tomorrow</h2>
+      <div class="space-y-3">
+        {% if events.events_tomorrow %} {% for event in events.events_tomorrow
+        %}
+        <div
+          class="p-3 rounded-lg shadow-sm border-l-4 bg-white"
+          style="border-color: {{config['APP_CONFIG']['events']['event_calendars'][event.calendar]['color']}};"
+        >
+          <h3 class="font-semibold text-lg">{{ event.summary }}</h3>
+          {% if not event.full_day %}
+
+          <p class="text-sm text-gray-600">
+            {{ event.start }} &ndash; {{ event.end }}
+          </p>
+          {% endif %} {% if event.location %}
+          <p class="text-sm text-gray-600">
+            {% if event.directions and event.location != 'Home' %}
+            <a
+              href="{{ event.directions }}"
+              class="text-blue-500 underline"
+              target="_blank"
+            >
+              {{ event.location }}
+            </a>
+            {% else %} {{ event.location }} {% endif %}
+          </p>
+          {% endif %}
+        </div>
+        {% endfor %} {% else %}
+        <p class="text-gray-500">No events for tomorrow.</p>
+        {% endif %}
+      </div>
+      <!-- Meals for Tomorrow -->
+      <hr class="my-4 border-gray-300" />
+      <h2 class="text-md font-semibold mb-2">Meals</h2>
+      <ul class="space-y-2">
+        {% if events.meals_tomorrow %} {% for meal in events.meals_tomorrow %}
+        <li class="p-2 bg-white rounded-lg shadow-sm">{{ meal.summary }}</li>
+        {% endfor %} {% else %}
+        <p class="text-gray-500">No meals planned.</p>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+  <p class="text-xs text-gray-500 text-center pt-2">
+    Last updated {{ events.last_updated }}
+  </p>
+</div>
