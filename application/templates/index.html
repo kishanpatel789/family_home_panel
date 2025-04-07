@@ -22,12 +22,34 @@
     <div class="w-full max-w-3xl bg-white p-6 rounded-lg shadow-lg">
       <h1 class="text-2xl font-bold text-center mb-4">Home Panel</h1>
 
-      <div hx-trigger="load" hx-get="/weather" hx-swap="outerHTML">
-        Weather placeholder
+      <div
+        hx-trigger="load"
+        hx-get="/weather"
+        hx-swap="outerHTML"
+        class="mb-6 p-4 bg-blue-100 rounded-lg"
+      >
+        <div class="flex flex-col items-center space-y-4">
+          <p class="text-lg">Loading weather...</p>
+          <img
+            class="htmx-indicator"
+            src="{{ url_for('static', filename='images/puff.svg') }}"
+          />
+        </div>
       </div>
 
-      <div hx-trigger="load" hx-get="/events" hx-swap="outerHTML">
-        Events placeholder
+      <div
+        hx-trigger="load"
+        hx-get="/events"
+        hx-swap="outerHTML"
+        class="w-full max-w-3xl bg-gray-100 p-2 sm:p-4 rounded-lg"
+      >
+        <div class="flex flex-col items-center space-y-4">
+          <p class="text-lg">Loading events...</p>
+          <img
+            class="htmx-indicator"
+            src="{{ url_for('static', filename='images/puff.svg') }}"
+          />
+        </div>
       </div>
     </div>
   </body>

@@ -31,8 +31,6 @@ def home():
 def weather():
     weather_dict = get_weather()
 
-    time.sleep(5)
-
     return render_template(
         "weather.html",
         weather=weather_dict,
@@ -42,8 +40,6 @@ def weather():
 @app.route("/events")
 def events():
     events_dict = get_events()
-
-    time.sleep(5)
 
     return render_template(
         "events.html",
