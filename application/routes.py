@@ -17,14 +17,8 @@ from .events import get_events
 
 @app.route("/")
 def home():
-    weather_dict = get_weather()
-    events_dict = get_events()
-
     return render_template(
         "index.html",
-        weather=weather_dict,
-        weather_emoji_map=WEATHER_EMOJI_MAP,
-        events=events_dict,
     )
 
 @app.route("/weather")
@@ -44,4 +38,10 @@ def events():
     return render_template(
         "events.html",
         events=events_dict,
+    )
+
+@app.route("/test")
+def test():
+    return render_template(
+        "index.html",
     )
