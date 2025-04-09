@@ -3,24 +3,12 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from flask import current_app as app
 import requests
 from pydantic import ValidationError
 
 from . import models
 from .config import logger
 
-
-CONFIG = app.config["APP_CONFIG"]["weather"]
-TIMEZONE = CONFIG["timezone"]
-LAT = CONFIG["lat"]
-LON = CONFIG["lon"]
-API_KEY = CONFIG["api_key"]
-UNITS = CONFIG.get("units", "metric")
-NUM_DAYS = CONFIG.get("num_days", 3)
-BASE_URL = CONFIG.get("base_url", "https://api.openweathermap.org/data/2.5")
-CACHE_FILE = CONFIG["cache_file"]
-CACHE_TTL = CONFIG["cache_ttl"]
 
 WEATHER_EMOJI_MAP = {
     "01d": "\u2600",  # sun
@@ -44,13 +32,13 @@ WEATHER_EMOJI_MAP = {
 }
 
 
-def call_api_current_weather() -> dict:
+def call_api_current_weather(config: dict) -> dict:
     """Call OpenWeather API and return current weather data.
 
     Returns:
         dict: JSON response from API as python dict
     """
-    url = f"{BASE_URL}/weather?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}"
+    url = f"{config['base_url']}/weather?lat={config['lat']}&lon={config['lon']}&appid={config['api_key']}&units={config['units']}"
     response = requests.get(url)
     response.raise_for_status()
     current_weather = response.json()
@@ -58,13 +46,13 @@ def call_api_current_weather() -> dict:
     return current_weather
 
 
-def call_api_forecast_weather() -> list:
+def call_api_forecast_weather(config: dict) -> list:
     """Call OpenWeather API and return 3-hour forecast weather data.
 
     Returns:
         dict: JSON response from API as python dict
     """
-    url = f"{BASE_URL}/forecast?lat={LAT}&lon={LON}&appid={API_KEY}&units={UNITS}&cnt={NUM_DAYS*8}"
+    url = f"{config['base_url']}/forecast?lat={config['lat']}&lon={config['lon']}&appid={config['api_key']}&units={config['units']}&cnt={config['num_days']*8}"
     response = requests.get(url)
     response.raise_for_status()
     forecast_weather = response.json()["list"]
@@ -92,7 +80,7 @@ def process_rain_snow(weather: dict) -> tuple[int, int] | tuple[None, None]:
     return (rain_mmh, snow_mmh)
 
 
-def timestamp_to_date_hour(timestamp: int) -> str:
+def timestamp_to_date_hour(timestamp: int, timezone: str) -> str:
     """Converts timestamp to local time in HH:MM format.
     Uses timezone set in config.
 
@@ -105,12 +93,12 @@ def timestamp_to_date_hour(timestamp: int) -> str:
 
     return (
         datetime.fromtimestamp(timestamp)
-        .astimezone(ZoneInfo(TIMEZONE))
+        .astimezone(ZoneInfo(timezone))
         .strftime("%H:%M")
     )
 
 
-def update_weather_cache() -> models.WeatherCache:
+def update_weather_cache(config: dict) -> models.WeatherCache:
     """Calls OpenWeather API and updates weather cache.
     Cache is stored in local json file and returned as pydantic model.
 
@@ -118,7 +106,7 @@ def update_weather_cache() -> models.WeatherCache:
         models.WeatherCache: Pydantic model of weather cache
     """
 
-    cw = call_api_current_weather()
+    cw = call_api_current_weather(config)
     rain_mmh, snow_mmh = process_rain_snow(cw)
     current_weather_model = models.CurrentWeather(
         condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
@@ -131,7 +119,7 @@ def update_weather_cache() -> models.WeatherCache:
         snow=snow_mmh,
     )
 
-    fw = call_api_forecast_weather()
+    fw = call_api_forecast_weather(config)
     forecast_weather_models = []
     for f in fw:
         _forecast_model = models.HourForecast(
@@ -149,13 +137,13 @@ def update_weather_cache() -> models.WeatherCache:
         forecast=forecast_weather_models,
     )
 
-    with open(CACHE_FILE, "wt") as cache_file:
+    with open(config["cache_file"], "wt") as cache_file:
         json.dump(weather_cache.model_dump(), cache_file, indent=4)
 
     return weather_cache
 
 
-def get_cached_weather() -> models.WeatherCache:
+def get_cached_weather(config: dict) -> models.WeatherCache:
     """Get cached weather if available. Else refresh cache and return results.
 
     Returns:
@@ -163,32 +151,34 @@ def get_cached_weather() -> models.WeatherCache:
     """
 
     try:
-        with open(CACHE_FILE, "rt") as cache_file:
+        with open(config["cache_file"], "rt") as cache_file:
             cache_data = models.WeatherCache(**json.load(cache_file))
     except (ValidationError, FileNotFoundError, json.decoder.JSONDecodeError) as e:
         logger.error(e)
-        return update_weather_cache()
+        return update_weather_cache(config)
 
-    cache_expiration_timestamp = cache_data.timestamp + CACHE_TTL
+    cache_expiration_timestamp = cache_data.timestamp + config["cache_ttl"]
     if time.time() < cache_expiration_timestamp:
         logger.info("Using fresh cache.")
         return cache_data
     else:
         logger.info("Cache expired. Refreshing cache.")
-        return update_weather_cache()
+        return update_weather_cache(config)
 
 
-def get_weather() -> dict:
+def get_weather(config: dict) -> dict:
     """Returns weather data to be used in jinja template; relies on cache
 
     Returns:
         dict: Weather data
     """
-    weather_cache = get_cached_weather()
+    weather_cache = get_cached_weather(config)
     weather_cache_dict = weather_cache.model_dump()
-    weather_cache_dict["last_updated"] = weather_cache.formatted_timestamp
+    weather_cache_dict["last_updated"] = weather_cache.formatted_timestamp(
+        config["timezone"]
+    )
 
     for f in weather_cache_dict["forecast"]:
-        f["timestamp"] = timestamp_to_date_hour(f["timestamp"])
+        f["timestamp"] = timestamp_to_date_hour(f["timestamp"], config["timezone"])
 
     return weather_cache_dict

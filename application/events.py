@@ -7,34 +7,14 @@ import time
 
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
-from flask import current_app as app
 from pydantic import ValidationError
 
 from . import models
 from .config import logger
 
-CONFIG: dict = app.config["APP_CONFIG"]["events"]
-KEY_FILE: str = CONFIG["key_file"]
-TIMEZONE: str = CONFIG.get("timezone", "America/Chicago")
-EVENT_CALENDARS: dict = CONFIG["event_calendars"]
-FOOD_CALENDAR_ID: str = CONFIG["food_calendar"]["id"]
-GOOGLE_MAPS_BASE_URL: str = CONFIG["google_maps_base_url"]
-GOOGLE_MAPS_API_VERSION: str = CONFIG["google_maps_api_version"]
-DIRECTION_ORIGIN: str = CONFIG["direction_origin"]
-CACHE_FILE: str = CONFIG["cache_file"]
-CACHE_TTL: int = CONFIG["cache_ttl"]
-
-
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-SERVICE_ACCOUNT_FILE = KEY_FILE
-credentials = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES
-)
-service = build("calendar", "v3", credentials=credentials)
-
 
 def call_api_events(
-    calendar_id: str, start_dt: datetime, end_dt: datetime
+    calendar_id: str, start_dt: datetime, end_dt: datetime, service
 ) -> list[dict]:
     """Call Google Calendar API and return events for given calendar and date range.
 
@@ -66,7 +46,7 @@ def call_api_events(
     return events
 
 
-def create_directions_url(location: str | None) -> str | None:
+def create_directions_url(config: dict, location: str | None) -> str | None:
     """Convert event location (if any) into a directions url.
     For in-person events, this will be a Google Maps URL with the event location as the destination.
     For virtual events, this will be the event URL.
@@ -84,15 +64,15 @@ def create_directions_url(location: str | None) -> str | None:
             return location
 
         # in-person event
-        if location != DIRECTION_ORIGIN:
+        if location != config["direction_origin"]:
             url_query = urlencode(
                 {
-                    "api": GOOGLE_MAPS_API_VERSION,
-                    "origin": DIRECTION_ORIGIN,
+                    "api": config["google_maps_api_version"],
+                    "origin": config["direction_origin"],
                     "destination": location,
                 }
             )
-            dir_url = f"{GOOGLE_MAPS_BASE_URL}/?{url_query}"
+            dir_url = f"{config["google_maps_base_url"]}/?{url_query}"
 
             return dir_url
 
@@ -110,7 +90,7 @@ def sort_events(events: list[models.Event]) -> list[models.Event]:
     return sorted(events, key=lambda x: (not x.full_day, x.start, x.summary))
 
 
-def update_events_cache() -> models.EventsCache:
+def update_events_cache(config: dict) -> models.EventsCache:
     """Update local event cache for multiple Google calendars.
     Captures events for today and tomorrow.
     Saves events in local json and returns pydantic model.
@@ -118,9 +98,14 @@ def update_events_cache() -> models.EventsCache:
     Returns:
         models.EventsCache: Pydantic model of events
     """
+    credentials = service_account.Credentials.from_service_account_file(
+        config["key_file"], scopes=["https://www.googleapis.com/auth/calendar.readonly"]
+    )
+    service = build("calendar", "v3", credentials=credentials)
+
     today_midnight = (
         datetime.today()
-        .astimezone(ZoneInfo(TIMEZONE))
+        .astimezone(ZoneInfo(config["timezone"]))
         .replace(hour=0, minute=0, second=0)
     )
     tomorrow_midnight = today_midnight + timedelta(days=1)
@@ -131,8 +116,10 @@ def update_events_cache() -> models.EventsCache:
     meals_today = []
     meals_tomorrow = []
 
-    for cal_name, cal_info in EVENT_CALENDARS.items():
-        events = call_api_events(cal_info["id"], today_midnight, two_days_midnight)
+    for cal_name, cal_info in config["event_calendars"].items():
+        events = call_api_events(
+            cal_info["id"], today_midnight, two_days_midnight, service
+        )
 
         for e in events:
             if "date" in e["start"]:  # full day event
@@ -141,13 +128,13 @@ def update_events_cache() -> models.EventsCache:
                     summary=e["summary"],
                     full_day=True,
                     start=datetime.fromisoformat(e["start"]["date"]).astimezone(
-                        ZoneInfo(TIMEZONE)
+                        ZoneInfo(config["timezone"])
                     ),
                     end=datetime.fromisoformat(e["end"]["date"]).astimezone(
-                        ZoneInfo(TIMEZONE)
+                        ZoneInfo(config["timezone"])
                     ),
                     location=e.get("location"),
-                    directions=create_directions_url(e.get("location")),
+                    directions=create_directions_url(config, e.get("location")),
                 )
                 if e_model.start <= today_midnight < e_model.end:
                     events_today.append(e_model)
@@ -161,24 +148,26 @@ def update_events_cache() -> models.EventsCache:
                     start=datetime.fromisoformat(e["start"]["dateTime"]),
                     end=datetime.fromisoformat(e["end"]["dateTime"]),
                     location=e.get("location"),
-                    directions=create_directions_url(e.get("location")),
+                    directions=create_directions_url(config, e.get("location")),
                 )
                 if today_midnight <= e_model.start < tomorrow_midnight:
                     events_today.append(e_model)
                 if tomorrow_midnight <= e_model.start < two_days_midnight:
                     events_tomorrow.append(e_model)
 
-    food_events = call_api_events(FOOD_CALENDAR_ID, today_midnight, two_days_midnight)
+    food_events = call_api_events(
+        config["food_calendar"]["id"], today_midnight, two_days_midnight, service
+    )
 
     for f in food_events:
         if "date" in f["start"]:  # full day "event"
             f_model = models.Food(
                 summary=f["summary"],
                 start=datetime.fromisoformat(f["start"]["date"]).astimezone(
-                    ZoneInfo(TIMEZONE)
+                    ZoneInfo(config["timezone"])
                 ),
                 end=datetime.fromisoformat(f["end"]["date"]).astimezone(
-                    ZoneInfo(TIMEZONE)
+                    ZoneInfo(config["timezone"])
                 ),
             )
             if f_model.start <= today_midnight < f_model.end:
@@ -194,35 +183,35 @@ def update_events_cache() -> models.EventsCache:
         meals_tomorrow=meals_tomorrow,
     )
 
-    with open(CACHE_FILE, "wt") as cache_file:
+    with open(config["cache_file"], "wt") as cache_file:
         cache_file.write(events_cache.model_dump_json(indent=4))
 
     return events_cache
 
 
-def get_cached_events() -> models.EventsCache:
+def get_cached_events(config: dict) -> models.EventsCache:
     """Get cached events if available. Else refresh cache and return results.
 
     Returns:
         models.EventsCache: Pydantic model of events
     """
     try:
-        with open(CACHE_FILE, "rt") as cache_file:
+        with open(config["cache_file"], "rt") as cache_file:
             cache_data = models.EventsCache(**json.load(cache_file))
     except (ValidationError, FileNotFoundError, json.decoder.JSONDecodeError) as e:
         logger.error(e)
-        return update_events_cache()
+        return update_events_cache(config)
 
-    cache_expiration_timestamp = cache_data.timestamp + CACHE_TTL
+    cache_expiration_timestamp = cache_data.timestamp + config["cache_ttl"]
     if time.time() < cache_expiration_timestamp:
         logger.info("Using fresh cache.")
         return cache_data
     else:
         logger.info("Cache expired. Refreshing cache.")
-        return update_events_cache()
+        return update_events_cache(config)
 
 
-def format_events(events_cache_dict: dict) -> dict:
+def format_events(config: dict, events_cache_dict: dict) -> dict:
     """Format event times and common locations for display.
 
     Args:
@@ -237,7 +226,7 @@ def format_events(events_cache_dict: dict) -> dict:
             e["end"] = e["end"].strftime("%H:%M")
 
             if e["location"] is not None:
-                for root_address, friendly_name in CONFIG["common_locations"].items():
+                for root_address, friendly_name in config["common_locations"].items():
                     if root_address.lower() in e["location"].lower():
                         e["location"] = friendly_name
                         break
@@ -245,16 +234,18 @@ def format_events(events_cache_dict: dict) -> dict:
     return events_cache_dict
 
 
-def get_events() -> dict:
+def get_events(config: dict) -> dict:
     """Returns events data to be used in jinja template; relies on cache
 
     Returns:
         dict: Events data for today and tomorrow
     """
-    events_cache = get_cached_events()
+    events_cache = get_cached_events(config)
     events_cache_dict = events_cache.model_dump()
-    events_cache_dict["last_updated"] = events_cache.formatted_timestamp
+    events_cache_dict["last_updated"] = events_cache.formatted_timestamp(
+        config["timezone"]
+    )
 
-    events_cache_dict = format_events(events_cache_dict)
+    events_cache_dict = format_events(config, events_cache_dict)
 
     return events_cache_dict

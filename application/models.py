@@ -5,9 +5,6 @@ from pydantic import BaseModel
 from flask import current_app as app
 
 
-APP_CONFIG = app.config["APP_CONFIG"]
-
-
 class CurrentWeather(BaseModel):
     condition: str
     icon: str
@@ -32,12 +29,11 @@ class WeatherCache(BaseModel):
     current: CurrentWeather
     forecast: list[HourForecast]
 
-    @property
-    def formatted_timestamp(self) -> str:
+    def formatted_timestamp(self, timezone: str) -> str:
         """Convert timestamp into human-readable string"""
         return (
             datetime.fromtimestamp(self.timestamp)
-            .astimezone(ZoneInfo(APP_CONFIG["weather"]["timezone"]))
+            .astimezone(ZoneInfo(timezone))
             .strftime("%m-%d %H:%M")
         )
 
@@ -65,11 +61,10 @@ class EventsCache(BaseModel):
     events_tomorrow: list[Event]
     meals_tomorrow: list[Food] = []
 
-    @property
-    def formatted_timestamp(self) -> str:
+    def formatted_timestamp(self, timezone: str) -> str:
         """Convert timestamp into human-readable string"""
         return (
             datetime.fromtimestamp(self.timestamp)
-            .astimezone(ZoneInfo(APP_CONFIG["events"]["timezone"]))
+            .astimezone(ZoneInfo(timezone))
             .strftime("%m-%d %H:%M")
         )

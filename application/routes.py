@@ -1,29 +1,21 @@
-import time
-
-from flask import (
-    render_template,
-    make_response,
-    abort,
-    redirect,
-    url_for,
-    flash,
-    request,
-)
-from flask import current_app as app
+from flask import Blueprint, render_template, current_app
 
 from .weather import get_weather, WEATHER_EMOJI_MAP
 from .events import get_events
 
+main_bp = Blueprint("main", __name__)
 
-@app.route("/")
+
+@main_bp.route("/")
 def home():
     return render_template(
         "index.html",
     )
 
-@app.route("/weather")
+
+@main_bp.route("/weather")
 def weather():
-    weather_dict = get_weather()
+    weather_dict = get_weather(current_app.config["APP_CONFIG"]["weather"])
 
     return render_template(
         "weather.html",
@@ -31,17 +23,12 @@ def weather():
         weather_emoji_map=WEATHER_EMOJI_MAP,
     )
 
-@app.route("/events")
+
+@main_bp.route("/events")
 def events():
-    events_dict = get_events()
+    events_dict = get_events(current_app.config["APP_CONFIG"]["events"])
 
     return render_template(
         "events.html",
         events=events_dict,
-    )
-
-@app.route("/test")
-def test():
-    return render_template(
-        "index.html",
     )
