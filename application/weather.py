@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -7,8 +8,8 @@ import requests
 from pydantic import ValidationError
 
 from . import models
-from .config import logger
 
+logger = logging.getLogger(__name__)
 
 WEATHER_EMOJI_MAP = {
     "01d": "\u2600",  # sun
@@ -52,7 +53,7 @@ def call_api_forecast_weather(config: dict) -> list:
     Returns:
         dict: JSON response from API as python dict
     """
-    url = f"{config['base_url']}/forecast?lat={config['lat']}&lon={config['lon']}&appid={config['api_key']}&units={config['units']}&cnt={config['num_days']*8}"
+    url = f"{config['base_url']}/forecast?lat={config['lat']}&lon={config['lon']}&appid={config['api_key']}&units={config['units']}&cnt={config['num_days'] * 8}"
     response = requests.get(url)
     response.raise_for_status()
     forecast_weather = response.json()["list"]

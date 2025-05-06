@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -10,7 +11,8 @@ from google.oauth2 import service_account
 from pydantic import ValidationError
 
 from . import models
-from .config import logger
+
+logger = logging.getLogger(__name__)
 
 
 def call_api_events(
@@ -72,7 +74,7 @@ def create_directions_url(config: dict, location: str | None) -> str | None:
                     "destination": location,
                 }
             )
-            dir_url = f"{config["google_maps_base_url"]}/?{url_query}"
+            dir_url = f"{config['google_maps_base_url']}/?{url_query}"
 
             return dir_url
 
