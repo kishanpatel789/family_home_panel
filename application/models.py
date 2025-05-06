@@ -2,7 +2,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
-from flask import current_app as app
 
 
 class CurrentWeather(BaseModel):

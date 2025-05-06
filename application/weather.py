@@ -114,8 +114,8 @@ def update_weather_cache(config: dict) -> models.WeatherCache:
         icon=cw["weather"][0]["icon"],
         temperature=round(cw["main"]["temp"]),
         wind_speed=round(cw["wind"]["speed"] / 1000 * 60 * 60),  # convert m/s to km/hr
-        wind_deg=cw["wind"]["deg"],
-        cloud_coverage=cw["clouds"]["all"],
+        wind_deg=round(cw["wind"]["deg"]),
+        cloud_coverage=round(cw["clouds"]["all"]),
         rain=rain_mmh,
         snow=snow_mmh,
     )
@@ -128,7 +128,7 @@ def update_weather_cache(config: dict) -> models.WeatherCache:
             condition=f"{f['weather'][0]['main']} - {f['weather'][0]['description']}",
             icon=f["weather"][0]["icon"],
             temperature=round(f["main"]["temp"]),
-            precipitation_chance=f["pop"] * 100,
+            precipitation_chance=round(f["pop"] * 100),
         )
         forecast_weather_models.append(_forecast_model)
 
