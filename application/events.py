@@ -2,7 +2,6 @@ import json
 import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from pathlib import Path
 from urllib.parse import urlencode
 import time
 
