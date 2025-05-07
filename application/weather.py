@@ -81,6 +81,56 @@ def process_rain_snow(weather: dict) -> tuple[int, int] | tuple[None, None]:
     return (rain_mmh, snow_mmh)
 
 
+def process_current_weather(cw: dict) -> models.CurrentWeather:
+    """Process current weather API response and generate Pydantic model.
+
+    Args:
+        cw (dict): API response for current weather
+
+    Returns:
+        models.CurrentWeather: Pydantic model representing processed attributes
+    """
+
+    rain_mmh, snow_mmh = process_rain_snow(cw)
+    current_weather_model = models.CurrentWeather(
+        condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
+        icon=cw["weather"][0]["icon"],
+        temperature=round(cw["main"]["temp"]),
+        wind_speed=round(cw["wind"]["speed"] / 1000 * 60 * 60),  # convert m/s to km/hr
+        wind_deg=round(cw["wind"]["deg"]),
+        cloud_coverage=round(cw["clouds"]["all"]),
+        rain=rain_mmh,
+        snow=snow_mmh,
+    )
+
+    return current_weather_model
+
+
+def process_forecast_weather(fw: list) -> list[models.HourForecast]:
+    """Process forecast weather API response.
+    Generate and return list of hourly Pydantic models.
+
+    Args:
+        fw (list): List of dictionaries extracted from API response
+
+    Returns:
+        list[models.HourForecast]: Pydantic models containing hourly attributes
+    """
+
+    forecast_weather_models = []
+    for f in fw:
+        _forecast_model = models.HourForecast(
+            timestamp=f["dt"],
+            condition=f"{f['weather'][0]['main']} - {f['weather'][0]['description']}",
+            icon=f["weather"][0]["icon"],
+            temperature=round(f["main"]["temp"]),
+            precipitation_chance=round(f["pop"] * 100),
+        )
+        forecast_weather_models.append(_forecast_model)
+
+    return forecast_weather_models
+
+
 def timestamp_to_date_hour(timestamp: int, timezone: str) -> str:
     """Converts timestamp to local time in HH:MM format.
     Uses timezone set in config.
@@ -108,29 +158,10 @@ def update_weather_cache(config: dict) -> models.WeatherCache:
     """
 
     cw = call_api_current_weather(config)
-    rain_mmh, snow_mmh = process_rain_snow(cw)
-    current_weather_model = models.CurrentWeather(
-        condition=f"{cw['weather'][0]['main']} - {cw['weather'][0]['description']}",
-        icon=cw["weather"][0]["icon"],
-        temperature=round(cw["main"]["temp"]),
-        wind_speed=round(cw["wind"]["speed"] / 1000 * 60 * 60),  # convert m/s to km/hr
-        wind_deg=round(cw["wind"]["deg"]),
-        cloud_coverage=round(cw["clouds"]["all"]),
-        rain=rain_mmh,
-        snow=snow_mmh,
-    )
+    current_weather_model = process_current_weather(cw)
 
     fw = call_api_forecast_weather(config)
-    forecast_weather_models = []
-    for f in fw:
-        _forecast_model = models.HourForecast(
-            timestamp=f["dt"],
-            condition=f"{f['weather'][0]['main']} - {f['weather'][0]['description']}",
-            icon=f["weather"][0]["icon"],
-            temperature=round(f["main"]["temp"]),
-            precipitation_chance=round(f["pop"] * 100),
-        )
-        forecast_weather_models.append(_forecast_model)
+    forecast_weather_models = process_forecast_weather(fw)
 
     weather_cache = models.WeatherCache(
         timestamp=int(time.time()),
